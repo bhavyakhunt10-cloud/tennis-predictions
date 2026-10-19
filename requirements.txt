@@ -16,3 +16,4 @@ beautifulsoup4>=4.12.0
 lxml>=4.9.0          # fast HTML/XML parser for BeautifulSoup
 playwright>=1.40.0   # headless browser for JS-heavy / bot-protected sites
                      # after installing: playwright install chromium
+streamlit-autorefresh

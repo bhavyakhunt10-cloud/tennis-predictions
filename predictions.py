@@ -1,6 +1,9 @@
 import json
 import os
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
+IST = ZoneInfo("Asia/Kolkata")
 
 import numpy as np
 import pandas as pd
@@ -16,6 +19,13 @@ st.set_page_config(
     page_icon="🎾",
     layout="wide",
 )
+# Automatically refresh the app every 10 minutes
+from streamlit_autorefresh import st_autorefresh
+
+st_autorefresh(
+    interval=600000,
+    key="tennis_app_refresh"
+)
 
 DATA_DIR      = "data_files"
 FEATURES_FILE = os.path.join(DATA_DIR, "features_2020_present.parquet")
@@ -27,7 +37,7 @@ if os.path.exists(logo):
     st.image(logo, width=180)
 
 st.title("Tennis Predictions")
-st.caption(f"Data current to: {date.today().isoformat()}")
+st.caption(f"Today's date (IST): {datetime.now(IST).date().isoformat()}")
 
 def get_dataframe_height(df, row_height=35, header_height=38, padding=2, max_height=600):
     """
@@ -368,7 +378,7 @@ tab_today, tab_wta, tab_backlog, tab_predict, tab_player, tab_elo, tab_data, tab
 # Tab 1 — Today's Matches
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_today:
-    st.subheader(f"ATP · {date.today().strftime('%A, %B %d %Y')}")
+    st.subheader(f"ATP · {datetime.now(IST).strftime('%A, %B %d %Y')}")
 
     # ── Live scores ticker ────────────────────────────────────────────────────
     if live_scores_atp:
@@ -654,7 +664,7 @@ with tab_today:
 # Tab 2 — Today's WTA
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_wta:
-    st.subheader(f"WTA · {date.today().strftime('%A, %B %d %Y')}")
+    st.subheader(f"WTA · {datetime.now(IST).strftime('%A, %B %d %Y')}")
 
     # ── WTA live scores ───────────────────────────────────────────────────────
     wta_live = load_live_scores("WTA")
@@ -731,16 +741,25 @@ with tab_wta:
 
                 # Probability — Bzzoiro predictions are already 0-1 fractions
                                 # Probability — calculated from available betting odds
+                # Calculate probability from available betting odds
+                                # Calculate probability from available betting odds
                 if (
-                    _disp_o1 and _disp_o2
-                    and _disp_o1 > 1 and _disp_o2 > 1
+                    _disp_o1 is not None
+                    and _disp_o2 is not None
+                    and _disp_o1 > 1
+                    and _disp_o2 > 1
                 ):
-                    _raw1, _raw2 = 1 / _disp_o1, 1 / _disp_o2
+                    _raw1 = 1 / _disp_o1
+                    _raw2 = 1 / _disp_o2
                     _prob = _raw1 / (_raw1 + _raw2)
                 else:
                     _prob = None
 
-                _odds_str = f" · {_disp_o1:.2f} / {_disp_o2:.2f}" if (_disp_o1 and _disp_o2) else ""
+                _odds_str = (
+                    f" · {_disp_o1:.2f} / {_disp_o2:.2f}"
+                    if _disp_o1 is not None and _disp_o2 is not None
+                    else ""
+                )
 
                 if _prob is not None:
                     _p2_prob = 1 - _prob
