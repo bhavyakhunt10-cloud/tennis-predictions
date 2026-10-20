@@ -147,13 +147,35 @@ def fetch_live_singles_matches(
 
         # ZA marks the start of a tournament block.
         if "ZA" in fields:
-            za        = fields["ZA"]
-            za_lo     = za.lower()
-            in_singles = "singles" in za_lo and ("atp" in za_lo or "wta" in za_lo)
-            cur_tourney = za
-            cur_surface = za.rsplit(",", 1)[-1].strip() if "," in za else ""
-            continue
+            za = fields["ZA"]
+            za_lo = za.lower()
 
+            is_doubles = (
+                "doubles" in za_lo
+                or "double" in za_lo
+            )
+
+            supported_tour = any(
+                name in za_lo
+                for name in ("atp", "wta", "challenger", "itf")
+            )
+
+            in_singles = supported_tour and not is_doubles
+
+            cur_tourney = za
+            cur_surface = (
+                za.rsplit(",", 1)[-1].strip()
+                if "," in za
+                else ""
+            )
+
+            log.info(
+                "Tournament section: %s | included=%s",
+                za,
+                in_singles,
+            )
+
+            continue
         if not (in_singles and "AA" in fields and "WU" in fields):
             continue
 
@@ -166,6 +188,19 @@ def fetch_live_singles_matches(
             if fields.get("GRA", "0") not in ("0", "") or \
                fields.get("GRB", "0") not in ("0", ""):
                 continue
+        log.info(
+
+            "Match found: %s | %s vs %s | status=%s",
+
+            cur_tourney,
+
+            fields.get("AE", ""),
+
+            fields.get("AF", ""),
+
+            fields.get("AB", "?"),
+
+        )
 
         matches.append({
             "aa":       fields["AA"],
@@ -326,8 +361,30 @@ def fetch_flashscore_odds(
             match["aa"], geo_code=geo_code, geo_sub=geo_sub, session=session
         )
         if not odds_list:
-            log.debug("  no odds: %s vs %s", match["p1"], match["p2"])
-            continue
+                log.debug(
+                    "No odds available: %s vs %s",
+                    match["p1"],
+                    match["p2"],
+                )
+
+                rows.append({
+                    "event_id": match["aa"],
+                    "p1": match["p1"],
+                    "p2": match["p2"],
+                    "wu": match["wu"],
+                    "wv": match["wv"],
+                    "tourney": match["tourney"],
+                    "surface": match["surface"],
+                    "ts_start": match["ts_start"],
+                    "bookmaker_id": None,
+                    "bookmaker_name": "No odds available",
+                    "p1_odds": None,
+                    "p2_odds": None,
+                    "p1_opening": None,
+                    "p2_opening": None,
+                })
+
+        continue
 
         for odds in odds_list:
             rows.append({
@@ -367,7 +424,7 @@ if __name__ == "__main__":
     )
 
     print("Fetching Flashscore odds for upcoming ATP/WTA singles …")
-    rows = fetch_flashscore_odds(max_matches=20, request_delay_s=0.2)
+    rows = fetch_flashscore_odds(max_matches=None, request_delay_s=0.2)
 
     print(f"\nTotal rows returned: {len(rows)}")
 
@@ -386,8 +443,11 @@ if __name__ == "__main__":
             ).strftime("%Y-%m-%d %H:%M UTC")
             print(f"\n  [{ts}]  {row['p1']}  vs  {row['p2']}")
             print(f"  {row['tourney']}")
-        print(
-            f"    {row['bookmaker_name']:28s}: "
-            f"{row['p1']:20s} {row['p1_odds']:.2f}  |  "
-            f"{row['p2']:20s} {row['p2_odds']:.2f}"
-        )
+        if row["p1_odds"] is None or row["p2_odds"] is None:
+            print("    Odds unavailable")
+        else:
+            print(
+                f"    {row['bookmaker_name']:28s}: "
+                f"{row['p1']:20s} {row['p1_odds']:.2f}  |  "
+                f"{row['p2']:20s} {row['p2_odds']:.2f}"
+            )
